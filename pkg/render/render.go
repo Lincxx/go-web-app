@@ -2,38 +2,53 @@ package render
 
 import (
 	"bytes"
+	"github.com/Lincxx/go-web-app/pkg/config"
 	"html/template"
 	"log"
 	"net/http"
 	"path/filepath"
 )
 
+//var functions template.FuncMap{
+//
+//}
+
+var app *config.AppConfig
+
+// NewTemplates sets the config for the template
+func NewTemplates(a *config.AppConfig) {
+	app = a
+}
+
 // RenderTemplate renders templates using html/template
 func RenderTemplate(w http.ResponseWriter, tmpl string) {
-	//get the template cache from the app config
+	var tc map[string]*template.Template
+
+	if app.UseCache {
+		//get the template cache from the app config
+		tc = app.TemplateCache
+	} else {
+		tc, _ = CreateTemplateCache()
+	}
 
 	// create a template cache
-	tc, err := CreateTemplateCache()
-	if err != nil {
-		log.Fatal(err)
-	}
+	//tc, err := CreateTemplateCache()
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 
 	//get requested template from cahce
 	t, ok := tc[tmpl]
 	if !ok {
-		log.Fatal(err)
+		log.Fatal("Could not get template from template cache")
 	}
 
 	buf := new(bytes.Buffer)
 
-	err = t.Execute(buf, nil)
-
-	if err != nil {
-		log.Println(err)
-	}
+	_ = t.Execute(buf, nil)
 
 	//render the template
-	_, err = buf.WriteTo(w)
+	_, err := buf.WriteTo(w)
 	if err != nil {
 		log.Println(err)
 	}
