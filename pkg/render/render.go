@@ -1,20 +1,85 @@
 package render
 
 import (
-	"fmt"
+	"bytes"
 	"html/template"
+	"log"
 	"net/http"
+	"path/filepath"
 )
 
 // RenderTemplate renders templates using html/template
-func RenderTemplateTest(w http.ResponseWriter, tmpl string) {
-	parsedTemplate, _ := template.ParseFiles("./templates/" + tmpl)
-	err := parsedTemplate.Execute(w, nil)
-
+func RenderTemplate(w http.ResponseWriter, tmpl string) {
+	// create a template cache
+	tc, err := createTemplateCache()
 	if err != nil {
-		fmt.Println("error parsing template", err)
+		log.Fatal(err)
 	}
 
+	//get requested template from cahce
+	t, ok := tc[tmpl]
+	if !ok {
+		log.Fatal(err)
+	}
+
+	buf := new(bytes.Buffer)
+
+	err = t.Execute(buf, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	//render the template
+	_, err = buf.WriteTo(w)
+	if err != nil {
+		log.Println(err)
+	}
+
+	//parsedTemplate, _ := template.ParseFiles("./templates/"+tmpl, "./templates/base.layout.gohtml")
+	//err := parsedTemplate.Execute(w, nil)
+	//
+	//if err != nil {
+	//	fmt.Println("error parsing template", err)
+	//}
+
+}
+
+func createTemplateCache() (map[string]*template.Template, error) {
+	//myCache := make(map[string]*template.Template)
+	//these are the same
+	myCache := map[string]*template.Template{}
+
+	// get all of the files named *.page.gohtml from ./templates
+	pages, err := filepath.Glob("./templates/*.page.gohtml")
+
+	if err != nil {
+		return myCache, err
+	}
+
+	// range through all file ending with *.page.gohtml
+	for _, page := range pages {
+		name := filepath.Base(page)
+		//parse file
+		ts, err := template.New(name).ParseFiles(page)
+		if err != nil {
+			return myCache, err
+		}
+
+		//look for layout
+		matches, err := filepath.Glob("./templates/*.layout.gohtml")
+
+		if len(matches) > 0 {
+			ts, err = ts.ParseGlob("./templates/*.layout.gohtml")
+			if err != nil {
+				return myCache, err
+			}
+		}
+
+		myCache[name] = ts
+	}
+
+	return myCache, nil
 }
 
 //var tc = make(map[string]*template.Template)
